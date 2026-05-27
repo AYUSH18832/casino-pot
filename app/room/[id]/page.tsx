@@ -153,12 +153,14 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const currentBet = room.currentBet || 0;
   const me = room.players.find(p => p.id === playerId) || null;
   const canAct = Boolean(me && me.stack > 0 && !me.folded);
+  const getFinalScore = (player: Player) => player.stack + player.winnings;
   const leaderboardPlayers = [...room.players].sort((a, b) => {
-    if (b.contribution !== a.contribution) return b.contribution - a.contribution;
-    if (b.stack !== a.stack) return b.stack - a.stack;
+    const finalScoreDiff = getFinalScore(b) - getFinalScore(a);
+    if (finalScoreDiff !== 0) return finalScoreDiff;
+    if (b.winnings !== a.winnings) return b.winnings - a.winnings;
     return a.name.localeCompare(b.name);
   });
-  const topContribution = leaderboardPlayers[0]?.contribution || 0;
+  const topFinalScore = leaderboardPlayers[0] ? getFinalScore(leaderboardPlayers[0]) : 0;
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'pot', label: 'Pot' },
@@ -458,7 +460,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem', marginBottom: '1rem' }}>
                 <div>
                   <h3 style={{ fontFamily: 'Cinzel, serif', fontSize: '0.85rem', color: 'var(--gold)', letterSpacing: '0.1em' }}>Side Leaderboard</h3>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Contribution and balance</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Final score and balance</div>
                 </div>
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'right' }}>
                   Current bet<br />{fmtAmt(currentBet)}
@@ -467,7 +469,8 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
               <div className="leaderboard-list">
                 {leaderboardPlayers.map((player, index) => {
-                  const share = topContribution > 0 ? Math.round((player.contribution / topContribution) * 100) : 0;
+                  const finalScore = getFinalScore(player);
+                  const share = topFinalScore > 0 ? Math.round((finalScore / topFinalScore) * 100) : 0;
                   return (
                     <div key={player.id} className="leaderboard-item">
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'baseline' }}>
@@ -478,11 +481,11 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
                             {player.folded && <span style={{ fontSize: '0.62rem', color: '#e74c3c', fontFamily: 'Cinzel, serif' }}>FOLDED</span>}
                           </div>
                           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                            Contributed {fmtAmt(player.contribution)}
+                            Contributed {fmtAmt(player.contribution)} · Won {fmtAmt(player.winnings)}
                           </div>
                         </div>
                         <div style={{ textAlign: 'right', minWidth: '4.8rem' }}>
-                          <div style={{ fontFamily: 'Cinzel, serif', color: 'var(--gold)', fontSize: '0.88rem' }}>{fmtAmt(player.stack + player.winnings)}</div>
+                          <div style={{ fontFamily: 'Cinzel, serif', color: 'var(--gold)', fontSize: '0.88rem' }}>{fmtAmt(finalScore)}</div>
                           <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>final score</div>
                         </div>
                       </div>
@@ -491,8 +494,8 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
                           <div className="leaderboard-fill" style={{ width: `${share}%` }} />
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.45rem', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                          <span>{share}% of top contribution</span>
-                          <span>{fmtAmt(player.contribution + player.stack)} total stack</span>
+                          <span>{share}% of top score</span>
+                          <span>{fmtAmt(finalScore)} total score</span>
                         </div>
                       </div>
                     </div>
