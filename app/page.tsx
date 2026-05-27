@@ -47,6 +47,7 @@ export default function Home() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      if (!data.playerId) throw new Error('Join failed: missing player session');
       sessionStorage.setItem('player_' + code, data.playerId);
       localStorage.setItem('player_' + code, data.playerId);
       router.push('/room/' + code + '?player=' + data.playerId);
