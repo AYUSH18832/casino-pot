@@ -28,7 +28,8 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       sessionStorage.setItem('player_' + data.room.id, data.playerId);
-      router.push('/room/' + data.room.id);
+      localStorage.setItem('player_' + data.room.id, data.playerId);
+      router.push('/room/' + data.room.id + '?player=' + data.playerId);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to create room');
     } finally { setLoading(false); }
@@ -47,7 +48,8 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       sessionStorage.setItem('player_' + code, data.playerId);
-      router.push('/room/' + code);
+      localStorage.setItem('player_' + code, data.playerId);
+      router.push('/room/' + code + '?player=' + data.playerId);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Room not found');
     } finally { setLoading(false); }

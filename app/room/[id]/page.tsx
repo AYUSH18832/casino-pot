@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { Room, Player } from '@/lib/store';
 
 type Tab = 'pot' | 'players' | 'history' | 'winners';
@@ -9,6 +9,7 @@ type TableAction = 'check' | 'call' | 'raise' | 'fold' | 'all-in';
 export default function RoomPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [room, setRoom] = useState<Room | null>(null);
   const [playerId, setPlayerId] = useState<string>('');
@@ -44,12 +45,18 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   }, [id]);
 
   useEffect(() => {
-    const pid = sessionStorage.getItem(`player_${id}`) || '';
+    const pidFromUrl = searchParams.get('player') || '';
+    const pidFromStorage = localStorage.getItem(`player_${id}`) || sessionStorage.getItem(`player_${id}`) || '';
+    const pid = pidFromUrl || pidFromStorage;
     setPlayerId(pid);
+    if (pid) {
+      sessionStorage.setItem(`player_${id}`, pid);
+      localStorage.setItem(`player_${id}`, pid);
+    }
     fetchRoom();
     const interval = setInterval(fetchRoom, 3000);
     return () => clearInterval(interval);
-  }, [id, fetchRoom]);
+  }, [id, fetchRoom, searchParams]);
 
   useEffect(() => {
     if (room) {
