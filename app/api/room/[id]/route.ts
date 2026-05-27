@@ -36,6 +36,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ room });
   };
 
+  const requireActivePlayer = (playerIdToCheck?: string) => {
+    if (!playerIdToCheck) return { error: 'Player required', status: 400 };
+    const player = room.players.find(p => p.id === playerIdToCheck);
+    if (!player) return { error: 'Player not found', status: 404 };
+    if (player.stack <= 0) return { error: 'Out of chips. Wait until the pot is reset.', status: 400 };
+    if (player.folded) return { error: 'Player has folded', status: 400 };
+    return { player };
+  };
+
   if (action === 'join') {
     if (!playerName) return NextResponse.json({ error: 'Name required' }, { status: 400 });
     const exists = room.players.find(p => p.name.toLowerCase() === playerName.toLowerCase());
@@ -44,14 +53,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ room, playerId: exists.id });
     }
     const newPlayerId = crypto.randomUUID();
-    room.players.push({ id: newPlayerId, name: playerName, contribution: 0, stack: STARTING_STACK, folded: false, joinedAt: now });
+    room.players.push({ id: newPlayerId, name: playerName, contribution: 0, stack: STARTING_STACK, winnings: 0, folded: false, joinedAt: now });
     return persist();
   }
 
   if (action === 'contribute') {
     if (!playerId || !amount || amount <= 0) return NextResponse.json({ error: 'Invalid' }, { status: 400 });
-    const player = room.players.find(p => p.id === playerId);
-    if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 });
+    const active = requireActivePlayer(playerId);
+    if ('error' in active) return NextResponse.json({ error: active.error }, { status: active.status });
+    const player = active.player;
     if (player.stack < amount) return NextResponse.json({ error: 'Not enough chips' }, { status: 400 });
 
     player.contribution += amount;
@@ -63,20 +73,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   if (action === 'check') {
-    if (!playerId) return NextResponse.json({ error: 'Player required' }, { status: 400 });
-    const player = room.players.find(p => p.id === playerId);
-    if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 });
-    if (player.folded) return NextResponse.json({ error: 'Player has folded' }, { status: 400 });
+    const active = requireActivePlayer(playerId);
+    if ('error' in active) return NextResponse.json({ error: active.error }, { status: active.status });
+    const player = active.player;
     if (player.contribution !== room.currentBet) return NextResponse.json({ error: 'Cannot check. Call or raise first.' }, { status: 400 });
     recordEntry({ playerId, playerName: player.name, action: 'check' });
     return persist();
   }
 
   if (action === 'call') {
-    if (!playerId) return NextResponse.json({ error: 'Player required' }, { status: 400 });
-    const player = room.players.find(p => p.id === playerId);
-    if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 });
-    if (player.folded) return NextResponse.json({ error: 'Player has folded' }, { status: 400 });
+    const active = requireActivePlayer(playerId);
+    if ('error' in active) return NextResponse.json({ error: active.error }, { status: active.status });
+    const player = active.player;
 
     const required = Math.max(0, room.currentBet - player.contribution);
     const callAmount = Math.min(required, player.stack);
@@ -93,9 +101,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   if (action === 'raise') {
     if (!playerId || !amount || amount <= 0) return NextResponse.json({ error: 'Raise amount required' }, { status: 400 });
-    const player = room.players.find(p => p.id === playerId);
-    if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 });
-    if (player.folded) return NextResponse.json({ error: 'Player has folded' }, { status: 400 });
+    const active = requireActivePlayer(playerId);
+    if ('error' in active) return NextResponse.json({ error: active.error }, { status: active.status });
+    const player = active.player;
 
     const requiredToCall = Math.max(0, room.currentBet - player.contribution);
     const totalToCommit = requiredToCall + amount;
@@ -111,19 +119,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   if (action === 'fold') {
-    if (!playerId) return NextResponse.json({ error: 'Player required' }, { status: 400 });
-    const player = room.players.find(p => p.id === playerId);
-    if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 });
+    const active = requireActivePlayer(playerId);
+    if ('error' in active) return NextResponse.json({ error: active.error }, { status: active.status });
+    const player = active.player;
     player.folded = true;
     recordEntry({ playerId, playerName: player.name, action: 'fold' });
     return persist();
   }
 
   if (action === 'all-in') {
-    if (!playerId) return NextResponse.json({ error: 'Player required' }, { status: 400 });
-    const player = room.players.find(p => p.id === playerId);
-    if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 });
-    if (player.folded) return NextResponse.json({ error: 'Player has folded' }, { status: 400 });
+    const active = requireActivePlayer(playerId);
+    if ('error' in active) return NextResponse.json({ error: active.error }, { status: active.status });
+    const player = active.player;
 
     const allInAmount = player.stack;
     if (allInAmount <= 0) return NextResponse.json({ error: 'No chips left' }, { status: 400 });
@@ -156,6 +163,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const winner = room.players.find(p => p.id === winnerId);
     if (!winner) return NextResponse.json({ error: 'Player not found' }, { status: 404 });
     const awardAmount = amount || room.pot;
+    winner.winnings += awardAmount;
     room.winners.push({ playerId: winnerId, playerName: winner.name, amount: awardAmount, timestamp: now });
     room.pot = Math.max(0, room.pot - awardAmount);
     room.updatedAt = now;
@@ -170,6 +178,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     room.players.forEach(p => {
       p.contribution = 0;
       p.stack = STARTING_STACK;
+      p.winnings = 0;
       p.folded = false;
     });
     return persist();

@@ -81,8 +81,8 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
   async function contribute() {
     const amt = parseFloat(amount);
-    if (!amt || amt <= 0 || !selectedPlayer) return;
-    const ok = await patch({ action: 'contribute', playerId: selectedPlayer, amount: amt, note });
+    if (!amt || amt <= 0 || !playerId || selectedPlayer !== playerId) return;
+    const ok = await patch({ action: 'contribute', playerId, amount: amt, note });
     if (ok) { setAmount(''); setNote(''); }
   }
 
@@ -94,8 +94,8 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   }
 
   async function tableAction(action: TableAction) {
-    if (!selectedPlayer) return;
-    const payload: Record<string, unknown> = { action, playerId: selectedPlayer };
+    if (!playerId || selectedPlayer !== playerId) return;
+    const payload: Record<string, unknown> = { action, playerId };
     if (action === 'raise') {
       const amt = parseFloat(tableActionAmount);
       if (!amt || amt <= 0) return;
@@ -144,6 +144,8 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const cur = room.currency;
   const fmtAmt = (n: number) => `${cur}${n.toLocaleString('en-IN')}`;
   const currentBet = room.currentBet || 0;
+  const me = room.players.find(p => p.id === playerId) || null;
+  const canAct = Boolean(me && me.stack > 0 && !me.folded);
   const leaderboardPlayers = [...room.players].sort((a, b) => {
     if (b.contribution !== a.contribution) return b.contribution - a.contribution;
     if (b.stack !== a.stack) return b.stack - a.stack;
@@ -232,11 +234,14 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '0.7rem', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase', fontFamily: 'Cinzel, serif' }}>Player</label>
-                      <select value={selectedPlayer} onChange={e => setSelectedPlayer(e.target.value)}>
+                      <select value={selectedPlayer} onChange={e => setSelectedPlayer(e.target.value)} disabled>
                         {room.players.map(p => (
                           <option key={p.id} value={p.id}>{p.name}{p.id === playerId ? ' (you)' : ''}</option>
                         ))}
                       </select>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+                        Actions are locked to your own player.
+                      </div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.75rem' }}>
                       <div style={{ flex: 1 }}>
@@ -265,7 +270,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
                     </div>
 
                     {error && <p style={{ color: '#e74c3c', fontSize: '0.82rem' }}>{error}</p>}
-                    <button className="btn-gold" onClick={contribute} disabled={actionLoading || !amount}>
+                    <button className="btn-gold" onClick={contribute} disabled={actionLoading || !amount || !canAct}>
                       {actionLoading ? '...' : `Add ${amount ? fmtAmt(parseFloat(amount) || 0) : ''} to Pot`}
                     </button>
                   </div>
@@ -276,24 +281,27 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '0.7rem', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase', fontFamily: 'Cinzel, serif' }}>Player</label>
-                      <select value={selectedPlayer} onChange={e => setSelectedPlayer(e.target.value)}>
+                      <select value={selectedPlayer} onChange={e => setSelectedPlayer(e.target.value)} disabled>
                         {room.players.map(p => (
                           <option key={p.id} value={p.id}>{p.name}{p.id === playerId ? ' (you)' : ''}</option>
                         ))}
                       </select>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+                        Only your own player can act.
+                      </div>
                     </div>
 
                     <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                      <button className="btn-ghost" style={{ flex: '1 1 120px' }} onClick={() => tableAction('check')} disabled={actionLoading || !selectedPlayer}>
+                      <button className="btn-ghost" style={{ flex: '1 1 120px' }} onClick={() => tableAction('check')} disabled={actionLoading || !canAct}>
                         Check
                       </button>
-                      <button className="btn-ghost" style={{ flex: '1 1 120px' }} onClick={() => tableAction('call')} disabled={actionLoading || !selectedPlayer}>
+                      <button className="btn-ghost" style={{ flex: '1 1 120px' }} onClick={() => tableAction('call')} disabled={actionLoading || !canAct}>
                         Call
                       </button>
-                      <button className="btn-danger" style={{ flex: '1 1 120px' }} onClick={() => tableAction('fold')} disabled={actionLoading || !selectedPlayer}>
+                      <button className="btn-danger" style={{ flex: '1 1 120px' }} onClick={() => tableAction('fold')} disabled={actionLoading || !canAct}>
                         Fold
                       </button>
-                      <button className="btn-gold" style={{ flex: '1 1 120px' }} onClick={() => tableAction('all-in')} disabled={actionLoading || !selectedPlayer}>
+                      <button className="btn-gold" style={{ flex: '1 1 120px' }} onClick={() => tableAction('all-in')} disabled={actionLoading || !canAct}>
                         All In
                       </button>
                     </div>
@@ -302,12 +310,13 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
                       <label style={{ display: 'block', fontSize: '0.7rem', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase', fontFamily: 'Cinzel, serif' }}>Raise Amount</label>
                       <input type="number" placeholder="Amount to raise by" value={tableActionAmount} onChange={e => setTableActionAmount(e.target.value)} min="1" onKeyDown={e => e.key === 'Enter' && tableAction('raise')} />
                     </div>
-                    <button className="btn-gold" onClick={() => tableAction('raise')} disabled={actionLoading || !selectedPlayer || !tableActionAmount}>
+                    <button className="btn-gold" onClick={() => tableAction('raise')} disabled={actionLoading || !canAct || !tableActionAmount}>
                       Raise
                     </button>
 
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
                       Current bet: {fmtAmt(currentBet)}
+                      {me && <><br />Your chips: {fmtAmt(me.stack)} {me.stack <= 0 ? '(out until reset)' : ''}</>}
                     </div>
                   </div>
                 </div>
@@ -356,16 +365,18 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
                             {p.id === room.hostId && <span style={{ fontSize: '0.65rem', color: 'var(--gold)', fontFamily: 'Cinzel, serif', letterSpacing: '0.08em' }}>HOST</span>}
                             {p.id === playerId && <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>(you)</span>}
                             {p.folded && <span style={{ fontSize: '0.65rem', color: '#e74c3c', fontFamily: 'Cinzel, serif', letterSpacing: '0.08em' }}>FOLDED</span>}
+                            {p.stack <= 0 && <span style={{ fontSize: '0.65rem', color: '#e74c3c', fontFamily: 'Cinzel, serif', letterSpacing: '0.08em' }}>OUT</span>}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.4rem', flexWrap: 'wrap' }}>
                             <div style={{ flex: 1, minWidth: '120px', height: '3px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
                               <div style={{ width: `${pct}%`, height: '100%', background: 'var(--gold)', borderRadius: '2px', transition: 'width 0.5s' }} />
                             </div>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', minWidth: '5.2rem', textAlign: 'right' }}>{fmtAmt(p.contribution)} / {fmtAmt(p.stack)}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', minWidth: '7rem', textAlign: 'right' }}>{fmtAmt(p.contribution)} / {fmtAmt(p.stack)} / {fmtAmt(p.stack + p.winnings)}</span>
                           </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
                           <div style={{ fontFamily: 'Cinzel, serif', fontSize: '0.7rem', color: 'var(--text-muted)' }}>{pct}%</div>
+                          <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{p.stack <= 0 ? 'locked' : 'active'}</div>
                         </div>
                       </div>
                     );
@@ -468,8 +479,8 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
                           </div>
                         </div>
                         <div style={{ textAlign: 'right', minWidth: '4.8rem' }}>
-                          <div style={{ fontFamily: 'Cinzel, serif', color: 'var(--gold)', fontSize: '0.88rem' }}>{fmtAmt(player.stack)}</div>
-                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>balance</div>
+                          <div style={{ fontFamily: 'Cinzel, serif', color: 'var(--gold)', fontSize: '0.88rem' }}>{fmtAmt(player.stack + player.winnings)}</div>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>final score</div>
                         </div>
                       </div>
                       <div style={{ marginTop: '0.75rem' }}>

@@ -7,6 +7,7 @@ export interface Player {
   name: string;
   contribution: number;
   stack: number;
+  winnings: number;
   folded: boolean;
   joinedAt: number;
 }

@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       gameType,
       hostId,
       hostName,
-      players: [{ id: hostId, name: hostName, contribution: 0, stack: STARTING_STACK, folded: false, joinedAt: now }],
+      players: [{ id: hostId, name: hostName, contribution: 0, stack: STARTING_STACK, winnings: 0, folded: false, joinedAt: now }],
       pot: 0,
       currentBet: 0,
       entries: [],
