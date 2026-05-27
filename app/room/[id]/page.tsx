@@ -52,7 +52,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   }, [id, fetchRoom]);
 
   useEffect(() => {
-    if (room && !selectedPlayer) {
+    if (room) {
       setSelectedPlayer(playerId || room.players[0]?.id || '');
     }
   }, [room, playerId, selectedPlayer]);
@@ -81,7 +81,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
   async function contribute() {
     const amt = parseFloat(amount);
-    if (!amt || amt <= 0 || !playerId || selectedPlayer !== playerId) return;
+    if (!amt || amt <= 0 || !playerId) return;
     const ok = await patch({ action: 'contribute', playerId, amount: amt, note });
     if (ok) { setAmount(''); setNote(''); }
   }
@@ -94,7 +94,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   }
 
   async function tableAction(action: TableAction) {
-    if (!playerId || selectedPlayer !== playerId) return;
+    if (!playerId) return;
     const payload: Record<string, unknown> = { action, playerId };
     if (action === 'raise') {
       const amt = parseFloat(tableActionAmount);
