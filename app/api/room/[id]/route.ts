@@ -166,6 +166,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     winner.winnings += awardAmount;
     room.winners.push({ playerId: winnerId, playerName: winner.name, amount: awardAmount, timestamp: now });
     room.pot = Math.max(0, room.pot - awardAmount);
+    room.players.forEach(p => {
+      p.folded = false;
+    });
     room.updatedAt = now;
     store.set(id, room);
     return NextResponse.json({ room });
