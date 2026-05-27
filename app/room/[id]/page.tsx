@@ -233,14 +233,12 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
                   <h3 style={{ fontFamily: 'Cinzel, serif', fontSize: '0.85rem', color: 'var(--gold)', marginBottom: '1.2rem', letterSpacing: '0.1em' }}>Add to Pot</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.7rem', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase', fontFamily: 'Cinzel, serif' }}>Player</label>
-                      <select value={selectedPlayer} onChange={e => setSelectedPlayer(e.target.value)} disabled>
-                        {room.players.map(p => (
-                          <option key={p.id} value={p.id}>{p.name}{p.id === playerId ? ' (you)' : ''}</option>
-                        ))}
-                      </select>
+                      <label style={{ display: 'block', fontSize: '0.7rem', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase', fontFamily: 'Cinzel, serif' }}>Your Player</label>
+                      <div style={{ padding: '0.7rem 1rem', border: '1px solid var(--border)', borderRadius: '4px', background: 'rgba(255,255,255,0.04)', fontFamily: 'Cinzel, serif' }}>
+                        {me?.name || 'Waiting for player session'}
+                      </div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
-                        Actions are locked to your own player.
+                        You can only act for your own seat.
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -280,12 +278,10 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
                   <h3 style={{ fontFamily: 'Cinzel, serif', fontSize: '0.85rem', color: 'var(--gold)', marginBottom: '1.2rem', letterSpacing: '0.1em' }}>Poker Actions</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.7rem', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase', fontFamily: 'Cinzel, serif' }}>Player</label>
-                      <select value={selectedPlayer} onChange={e => setSelectedPlayer(e.target.value)} disabled>
-                        {room.players.map(p => (
-                          <option key={p.id} value={p.id}>{p.name}{p.id === playerId ? ' (you)' : ''}</option>
-                        ))}
-                      </select>
+                      <label style={{ display: 'block', fontSize: '0.7rem', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase', fontFamily: 'Cinzel, serif' }}>Your Player</label>
+                      <div style={{ padding: '0.7rem 1rem', border: '1px solid var(--border)', borderRadius: '4px', background: 'rgba(255,255,255,0.04)', fontFamily: 'Cinzel, serif' }}>
+                        {me?.name || 'Waiting for player session'}
+                      </div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
                         Only your own player can act.
                       </div>
