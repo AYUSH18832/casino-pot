@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { store, Room } from '@/lib/store';
+import { store, Room, STARTING_STACK } from '@/lib/store';
 
 function generateId(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -29,8 +29,9 @@ export async function POST(req: NextRequest) {
       gameType,
       hostId,
       hostName,
-      players: [{ id: hostId, name: hostName, contribution: 0, joinedAt: now }],
+      players: [{ id: hostId, name: hostName, contribution: 0, stack: STARTING_STACK, folded: false, joinedAt: now }],
       pot: 0,
+      currentBet: 0,
       entries: [],
       winners: [],
       createdAt: now,

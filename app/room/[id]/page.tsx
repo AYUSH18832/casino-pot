@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import type { Room, Player } from '@/lib/store';
 
 type Tab = 'pot' | 'players' | 'history' | 'winners';
+type TableAction = 'check' | 'call' | 'raise' | 'fold' | 'all-in';
 
 export default function RoomPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -20,6 +21,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [selectedPlayer, setSelectedPlayer] = useState('');
+  const [tableActionAmount, setTableActionAmount] = useState('');
 
   // Winner
   const [winnerId, setWinnerId] = useState('');
@@ -91,6 +93,18 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     if (ok) { setWinnerId(''); setWinAmount(''); }
   }
 
+  async function tableAction(action: TableAction) {
+    if (!selectedPlayer) return;
+    const payload: Record<string, unknown> = { action, playerId: selectedPlayer };
+    if (action === 'raise') {
+      const amt = parseFloat(tableActionAmount);
+      if (!amt || amt <= 0) return;
+      payload.amount = amt;
+    }
+    const ok = await patch(payload);
+    if (ok && action === 'raise') setTableActionAmount('');
+  }
+
   function copyCode() {
     navigator.clipboard.writeText(id).then(() => {
       setCopied(true);
@@ -129,6 +143,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
   const cur = room.currency;
   const fmtAmt = (n: number) => `${cur}${n.toLocaleString('en-IN')}`;
+  const currentBet = room.currentBet || 0;
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'pot', label: 'Pot' },
@@ -248,6 +263,47 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
               </div>
             </div>
 
+            <div className="panel" style={{ padding: '1.8rem', marginBottom: '1rem' }}>
+              <h3 style={{ fontFamily: 'Cinzel, serif', fontSize: '0.85rem', color: 'var(--gold)', marginBottom: '1.2rem', letterSpacing: '0.1em' }}>Poker Actions</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.7rem', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase', fontFamily: 'Cinzel, serif' }}>Player</label>
+                  <select value={selectedPlayer} onChange={e => setSelectedPlayer(e.target.value)}>
+                    {room.players.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}{p.id === playerId ? ' (you)' : ''}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <button className="btn-ghost" style={{ flex: '1 1 120px' }} onClick={() => tableAction('check')} disabled={actionLoading || !selectedPlayer}>
+                    Check
+                  </button>
+                  <button className="btn-ghost" style={{ flex: '1 1 120px' }} onClick={() => tableAction('call')} disabled={actionLoading || !selectedPlayer}>
+                    Call
+                  </button>
+                  <button className="btn-danger" style={{ flex: '1 1 120px' }} onClick={() => tableAction('fold')} disabled={actionLoading || !selectedPlayer}>
+                    Fold
+                  </button>
+                  <button className="btn-gold" style={{ flex: '1 1 120px' }} onClick={() => tableAction('all-in')} disabled={actionLoading || !selectedPlayer}>
+                    All In
+                  </button>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.7rem', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase', fontFamily: 'Cinzel, serif' }}>Raise Amount</label>
+                  <input type="number" placeholder="Amount to raise by" value={tableActionAmount} onChange={e => setTableActionAmount(e.target.value)} min="1" onKeyDown={e => e.key === 'Enter' && tableAction('raise')} />
+                </div>
+                <button className="btn-gold" onClick={() => tableAction('raise')} disabled={actionLoading || !selectedPlayer || !tableActionAmount}>
+                  Raise
+                </button>
+
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                  Current bet: {fmtAmt(currentBet)}
+                </div>
+              </div>
+            </div>
+
             {/* Award winner */}
             {(isHost || room.players.length > 0) && (
               <div className="panel" style={{ padding: '1.8rem' }}>
@@ -291,12 +347,13 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
                         <span style={{ fontFamily: 'Cinzel, serif', fontSize: '0.95rem' }}>{p.name}</span>
                         {p.id === room.hostId && <span style={{ fontSize: '0.65rem', color: 'var(--gold)', fontFamily: 'Cinzel, serif', letterSpacing: '0.08em' }}>HOST</span>}
                         {p.id === playerId && <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>(you)</span>}
+                        {p.folded && <span style={{ fontSize: '0.65rem', color: '#e74c3c', fontFamily: 'Cinzel, serif', letterSpacing: '0.08em' }}>FOLDED</span>}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.4rem' }}>
                         <div style={{ flex: 1, height: '3px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
                           <div style={{ width: `${pct}%`, height: '100%', background: 'var(--gold)', borderRadius: '2px', transition: 'width 0.5s' }} />
                         </div>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', minWidth: '3rem', textAlign: 'right' }}>{fmtAmt(p.contribution)}</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', minWidth: '5.2rem', textAlign: 'right' }}>{fmtAmt(p.contribution)} / {fmtAmt(p.stack)}</span>
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>

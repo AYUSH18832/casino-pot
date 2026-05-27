@@ -1,9 +1,13 @@
 export type GameType = 'poker' | 'teen-patti';
 
+export const STARTING_STACK = 10000;
+
 export interface Player {
   id: string;
   name: string;
   contribution: number;
+  stack: number;
+  folded: boolean;
   joinedAt: number;
 }
 
@@ -11,6 +15,7 @@ export interface PotEntry {
   id: string;
   playerId: string;
   playerName: string;
+  action: 'contribute' | 'check' | 'call' | 'raise' | 'fold' | 'all-in';
   amount: number;
   note: string;
   timestamp: number;
@@ -24,6 +29,7 @@ export interface Room {
   hostName: string;
   players: Player[];
   pot: number;
+  currentBet: number;
   entries: PotEntry[];
   winners: { playerId: string; playerName: string; amount: number; timestamp: number }[];
   createdAt: number;
