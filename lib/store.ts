@@ -41,8 +41,9 @@ export interface Room {
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
 
-const DATA_DIR = join(process.cwd(), '.data');
+const DATA_DIR = join(tmpdir(), 'casino-pot');
 const DATA_FILE = join(DATA_DIR, 'rooms.json');
 
 // In-memory cache backed by a small JSON file so room state survives restarts.
@@ -70,8 +71,12 @@ function loadRoomsFromDisk() {
 }
 
 function saveRoomsToDisk() {
-  mkdirSync(dirname(DATA_FILE), { recursive: true });
-  writeFileSync(DATA_FILE, JSON.stringify([...rooms.values()], null, 2), 'utf8');
+  try {
+    mkdirSync(dirname(DATA_FILE), { recursive: true });
+    writeFileSync(DATA_FILE, JSON.stringify([...rooms.values()], null, 2), 'utf8');
+  } catch {
+    // Best-effort only: Vercel serverless can run without writable disk storage.
+  }
 }
 
 // Auto-cleanup rooms older than 24h
