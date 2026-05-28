@@ -54,6 +54,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
     const newPlayerId = crypto.randomUUID();
     room.players.push({ id: newPlayerId, name: playerName, contribution: 0, stack: STARTING_STACK, winnings: 0, folded: false, joinedAt: now });
+    room.updatedAt = now;
+    store.set(id, room);
     return NextResponse.json({ room, playerId: newPlayerId });
   }
 
